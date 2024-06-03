@@ -28,7 +28,7 @@ export const Word: React.FC<{
 				justifyContent: 'center',
 				alignItems: 'center',
 				top: undefined,
-				bottom: 350,
+				bottom: 650,
 				height: 150,
 			}}
 		>

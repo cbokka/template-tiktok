@@ -12,14 +12,20 @@
 	"repository": {},
 	"license": "UNLICENSED",
 	"dependencies": {
-		"@remotion/cli": "^4.0.132",
-		"@remotion/zod-types": "^4.0.132",
+		"@huggingface/inference": "^2.7.0",
 		"@remotion/animation-utils": "^4.0.132",
+		"@remotion/cli": "^4.0.132",
 		"@remotion/layout-utils": "^4.0.132",
 		"@remotion/media-utils": "^4.0.132",
+		"@remotion/zod-types": "^4.0.132",
+		"axios": "^1.7.2",
+		"express": "^4.19.2",
+		"fs": "^0.0.1-security",
+		"node-fetch": "^3.3.2",
 		"react": "^18.0.0",
 		"react-dom": "^18.0.0",
 		"remotion": "^4.0.132",
+		"uuid": "^9.0.1",
 		"zod": "3.22.3"
 	},
 	"devDependencies": {
