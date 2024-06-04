@@ -18,37 +18,49 @@ const port = process.env.PORT || 3001;
 // Middleware to parse JSON bodies
 app.use(express.json());
 
-// Helper function to get the current date as a string in YYYY-MM-DD format
-const getCurrentDate = () => {
-  const now = new Date();
-  return now.toISOString().split('T')[0];
-};
-
 // Function to render your video composition
-const renderComposition = async (inputProps, uuid, dateFolder) => {
+const renderComposition = async (inputProps, uuid) => {
   try {
+    console.log('Starting bundle process...');
+    // Bundle the project
     const bundleLocation = await bundle({
       entryPoint: path.resolve('./src/index.ts'),
       webpackOverride,
     });
 
+    console.log('Bundle process completed.');
+    console.log('Selecting composition...');
+    // Select the composition
     const composition = await selectComposition({
       serveUrl: bundleLocation,
       id: compositionId,
       inputProps,
     });
 
-    const outputLocation = `/mnt/disks/bbnews/${dateFolder}/${uuid}.mp4`;
+    console.log('Composition selected.');
+    console.log(`Composition width: ${composition.width}, height: ${composition.height}`);
+
+    // Ensure the output directory exists
+    const outputLocation = `/mnt/disks/bbnews/output/final_${uuid}.mp4`;
     if (await fs.access(outputLocation).then(() => true).catch(() => false)) {
       console.log(`Video already exists: ${outputLocation}`);
       return outputLocation;
     }
+
+    console.log('Starting render process...');
+    // Render the media with progress logging
     await renderMedia({
       composition,
       serveUrl: bundleLocation,
       codec: 'h264',
       outputLocation,
       inputProps,
+      onProgress: (progress) => {
+        console.log(`Rendering progress object: ${JSON.stringify(progress)}`);
+        const { renderedFrames, totalFrames } = progress;
+        const progressPercent = (renderedFrames / totalFrames) * 100;
+        console.log(`Rendering progress: ${progressPercent.toFixed(2)}%`);
+      },
     });
 
     console.log('Render done!');
@@ -59,8 +71,8 @@ const renderComposition = async (inputProps, uuid, dateFolder) => {
   }
 };
 
-const generateSubtitles = async (charData, uuid, dateFolder) => {
-  const subtitleFilePath = path.join(`/mnt/disks/bbnews/${dateFolder}`, `${uuid}_subtitles.json`);
+const generateSubtitles = async (charData, uuid) => {
+  const subtitleFilePath = path.join('/mnt/disks/bbnews/public', `${uuid}_subtitles.json`);
   await convertCharToWordLevel(charData, subtitleFilePath);
   return subtitleFilePath;
 };
@@ -77,23 +89,22 @@ const ensureDirExists = async (dirPath) => {
 
 app.post('/render-video', async (req, res) => {
   const { filePath } = req.body;
-  const dateFolder = getCurrentDate();
 
   try {
-    await ensureDirExists(`/mnt/disks/bbnews/${dateFolder}`);
+    await ensureDirExists('/mnt/disks/bbnews');
     const jsonArray = JSON.parse(await fs.readFile(filePath, 'utf8'));
 
     for (let i = 0; i < jsonArray.length; i++) {
       const item = jsonArray[i];
 
-      const videoFilePath = path.join(`/mnt/disks/bbnews/${dateFolder}`, `${item.uuid}.mp4`);
+      const videoFilePath = path.join('/mnt/disks/bbnews', `final_${item.uuid}.mp4`);
       if (await fs.access(videoFilePath).then(() => true).catch(() => false)) {
         console.log(`Skipping already processed item: ${videoFilePath}`);
         continue;
       }
 
-      const subtitleFilePath = await generateSubtitles(item.charData, item.uuid, dateFolder);
-      await ensureDirExists(`/mnt/disks/bbnews/${dateFolder}`);
+      const subtitleFilePath = await generateSubtitles(item.charData, item.uuid);
+      await ensureDirExists('/mnt/disks/bbnews');
 
       const imagePromptFilePath = await processTranscription(subtitleFilePath, 2000, item.uuid);
 
@@ -104,7 +115,7 @@ app.post('/render-video', async (req, res) => {
         console.log(`Images already downloaded for UUID: ${item.uuid}`);
       }
 
-      const srcPath = path.join(`/mnt/disks/bbnews/${dateFolder}`, `${item.uuid}.mp4`);
+      const srcPath = path.join('./public', `${item.uuid}.mp4`);
       if (!await fs.access(srcPath).then(() => true).catch(() => false)) {
         throw new Error(`Source video file does not exist: ${srcPath}`);
       }
@@ -112,7 +123,7 @@ app.post('/render-video', async (req, res) => {
       const inputProps = {
         src: srcPath,
       };
-      const renderedFilePath = await renderComposition(inputProps, item.uuid, dateFolder);
+      const renderedFilePath = await renderComposition(inputProps, item.uuid);
       item.videoFilePath = renderedFilePath;
     }
 

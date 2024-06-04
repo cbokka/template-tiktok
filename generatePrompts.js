@@ -36,7 +36,7 @@ async function generatePrompts(systemPrompt, transcriptionData, nbMaxNewTokens) 
             parameters: {
                 max_new_tokens: nbMaxNewTokens,
                 return_full_text: false,
-                use_cache: false,
+                use_cache: true,
             }
         });
 
