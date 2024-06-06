@@ -88,7 +88,7 @@ const ensureDirExists = async (dirPath) => {
 };
 
 app.post('/render-video', async (req, res) => {
-  const { filePath } = req.body;
+  const { filePath, systemPromptFile } = req.body;
 
   try {
     await ensureDirExists('/mnt/disks/bbnews');
@@ -106,7 +106,9 @@ app.post('/render-video', async (req, res) => {
       const subtitleFilePath = await generateSubtitles(item.charData, item.uuid);
       await ensureDirExists('/mnt/disks/bbnews');
 
-      const imagePromptFilePath = await processTranscription(subtitleFilePath, 2000, item.uuid);
+      // Pass the systemPromptFile to processTranscription
+      const systemPromptPath = path.join(outputDir, systemPromptFile);
+      const imagePromptFilePath = await processTranscription(subtitleFilePath, 2000, item.uuid, systemPromptPath);
 
       if (!item.imagesDownload || item.imagesDownload !== 'complete') {
         await retryProcessPrompts(imagePromptFilePath, 1024, 1024, outputDir, preset);
@@ -134,6 +136,36 @@ app.post('/render-video', async (req, res) => {
   } catch (error) {
     console.error('Error in render-video route:', error);
     res.status(500).json({ message: 'Error rendering video', error: error.message });
+  }
+});
+
+// API endpoint to delete all .json, .mp4 files and the output folder in the public folder
+app.delete('/cleanup', async (req, res) => {
+  const publicDir = path.join(__dirname, 'public');
+  const outputDir = path.join(publicDir, 'output');
+
+  try {
+    // Delete all .json, .mp4 files in the public directory
+    const files = await fs.readdir(publicDir);
+    for (const file of files) {
+      const filePath = path.join(publicDir, file);
+      if (file.endsWith('.json') || file.endsWith('.mp4') || file.endsWith('.mp3')) {
+        await fs.unlink(filePath);
+      }
+    }
+
+    // Delete the output directory and its contents
+    const outputFiles = await fs.readdir(outputDir);
+    for (const file of outputFiles) {
+      const filePath = path.join(outputDir, file);
+      await fs.unlink(filePath);
+    }
+    await fs.rmdir(outputDir);
+
+    res.status(200).json({ message: 'Cleanup successful!' });
+  } catch (error) {
+    console.error('Error during cleanup:', error);
+    res.status(500).json({ message: 'Error during cleanup', error: error.message });
   }
 });
 
