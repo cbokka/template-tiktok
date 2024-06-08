@@ -37,9 +37,6 @@ const renderComposition = async (inputProps, uuid) => {
       inputProps,
     });
 
-    console.log('Composition selected.');
-    console.log(`Composition width: ${composition.width}, height: ${composition.height}`);
-
     // Ensure the output directory exists
     const outputLocation = `/mnt/disks/bbnews/output/final_${uuid}.mp4`;
     if (await fs.access(outputLocation).then(() => true).catch(() => false)) {
@@ -56,10 +53,7 @@ const renderComposition = async (inputProps, uuid) => {
       outputLocation,
       inputProps,
       onProgress: (progress) => {
-        console.log(`Rendering progress object: ${JSON.stringify(progress)}`);
-        const { renderedFrames, totalFrames } = progress;
-        const progressPercent = (renderedFrames / totalFrames) * 100;
-        console.log(`Rendering progress: ${progressPercent.toFixed(2)}%`);
+        console.log(`Rendering progress object: ${JSON.stringify(progress).progress}`);
       },
     });
 
@@ -122,9 +116,13 @@ app.post('/render-video', async (req, res) => {
         throw new Error(`Source video file does not exist: ${srcPath}`);
       }
 
+      // Extract the title without #tags
+      const title = item.title.split(' #')[0].trim();
       const inputProps = {
         src: srcPath,
+        videoTitle: title,
       };
+
       const renderedFilePath = await renderComposition(inputProps, item.uuid);
       item.videoFilePath = renderedFilePath;
     }
@@ -139,13 +137,13 @@ app.post('/render-video', async (req, res) => {
   }
 });
 
-// API endpoint to delete all .json, .mp4 files and the output folder in the public folder
+// API endpoint to delete all .json, .mp4, and .mp3 files and the output folder in the public folder
 app.delete('/cleanup', async (req, res) => {
   const publicDir = path.join(__dirname, 'public');
-  const outputDir = path.join(publicDir, 'output');
+  const outputDirPath = path.join(publicDir, 'output');
 
   try {
-    // Delete all .json, .mp4 files in the public directory
+    // Delete all .json, .mp4, .mp3 files in the public directory
     const files = await fs.readdir(publicDir);
     for (const file of files) {
       const filePath = path.join(publicDir, file);
@@ -155,12 +153,14 @@ app.delete('/cleanup', async (req, res) => {
     }
 
     // Delete the output directory and its contents
-    const outputFiles = await fs.readdir(outputDir);
-    for (const file of outputFiles) {
-      const filePath = path.join(outputDir, file);
-      await fs.unlink(filePath);
+    if (await fs.access(outputDirPath).then(() => true).catch(() => false)) {
+      const outputFiles = await fs.readdir(outputDirPath);
+      for (const file of outputFiles) {
+        const filePath = path.join(outputDirPath, file);
+        await fs.unlink(filePath);
+      }
+      await fs.rmdir(outputDirPath);
     }
-    await fs.rmdir(outputDir);
 
     res.status(200).json({ message: 'Cleanup successful!' });
   } catch (error) {

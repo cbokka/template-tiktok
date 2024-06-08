@@ -35,7 +35,7 @@ export const Word: React.FC<{
 			<div
 				style={{
 					fontSize,
-					color: 'white',
+					color: 'yellow',
 					WebkitTextStroke: stroke ? '20px black' : undefined,
 					transform: makeTransform([
 						scale(interpolate(enterProgress, [0, 1], [0.8, 1])),

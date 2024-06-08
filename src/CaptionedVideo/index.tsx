@@ -9,13 +9,14 @@ import {
   Sequence,
   useVideoConfig,
   staticFile,
-  Animated
 } from 'remotion';
 import { z } from 'zod';
 import Subtitle from './Subtitle';
 import { getVideoMetadata } from '@remotion/media-utils';
 import { loadFont } from '../load-font';
+import {TheBoldFont} from '../load-font';
 
+const fontFamily = `${TheBoldFont}, 'Noto Color Emoji', 'Arial', sans-serif`;
 
 export type SubtitleProp = {
   startInSeconds: number;
@@ -45,12 +46,14 @@ export const calculateCaptionedVideoMetadata: CalculateMetadataFunction<
 
 export const CaptionedVideo: React.FC<{
   src: string;
-}> = ({ src }) => {
+  videoTitle: string;
+}> = ({ src, videoTitle }) => {
   const [subtitles, setSubtitles] = useState<SubtitleProp[]>([]);
   const [images, setImages] = useState<ImageProp[]>([]);
   const [handle] = useState(() => delayRender());
   const { fps } = useVideoConfig();
 
+  console.log(`Video Title in server ${videoTitle}`);
   const uuid = src.match(/([^/]+)(?=\.\w+$)/)?.[0];
 
   const subtitlesFile = uuid ? staticFile(`${uuid}_subtitles.json`) : null;
@@ -116,6 +119,78 @@ export const CaptionedVideo: React.FC<{
           src={src}
         />
       </AbsoluteFill>
+
+      <AbsoluteFill
+        style={{
+          justifyContent: 'center',
+          alignItems: 'center',
+          top: 200,
+          bottom: 0,
+          height: 100,
+          width: 900,
+          marginLeft: 100
+        }}
+      >
+        <div
+          style={{
+            color: 'white',
+            textTransform: 'uppercase',
+            fontSize: 80,
+            textAlign: 'center',
+            fontFamily,
+          }}
+        >
+          {videoTitle}
+        </div>
+      </AbsoluteFill>
+      {images.map((image, index) => {
+        if (isNaN(image.startInSeconds)) {
+          console.error(`Image ${index} has invalid startInSeconds: ${image.startInSeconds}`);
+          return null;
+        }
+
+        const nextImage = images[index + 1] ?? null;
+        const imageStartFrame = image.startInSeconds * fps;
+        const imageEndFrame = nextImage
+          ? nextImage.startInSeconds * fps
+          : imageStartFrame + fps * 5; // Display each image for 5 seconds if there is no next image
+        const durationInFrames = imageEndFrame - imageStartFrame;
+
+        if (durationInFrames <= 0) {
+          return null;
+        }
+
+        return (
+          <Sequence
+            from={imageStartFrame}
+            durationInFrames={durationInFrames}
+            key={`image-${index}`}
+          >
+            <AbsoluteFill
+              style={{
+                alignItems: 'center',
+                justifyContent: 'flex-start',
+                paddingTop: '40%',
+                opacity: 0, // initial opacity is 0
+                transition: 'opacity 0.5s', // add a transition effect
+              }}
+            >
+              <img
+                src={staticFile(`output/${image.image}`)}
+                style={{
+                  width: '80%',
+                  height: 'auto',
+                }}
+                alt=""
+                onLoad={(e) => {
+                  // when the image is loaded, set opacity to 1
+                  e.target.parentNode.style.opacity = 1;
+                }}
+              />
+            </AbsoluteFill>
+          </Sequence>
+        );
+      })}
       {subtitles.map((subtitle, index) => {
         const nextSubtitle = subtitles[index + 1] ?? null;
         const subtitleStartFrame = subtitle.startInSeconds * fps;
@@ -135,54 +210,6 @@ export const CaptionedVideo: React.FC<{
             key={index}
           >
             <Subtitle key={index} text={subtitle.text} />
-          </Sequence>
-        );
-      })}
-      {images.map((image, index) => {
-        if (isNaN(image.startInSeconds)) {
-          console.error(`Image ${index} has invalid startInSeconds: ${image.startInSeconds}`);
-          return null;
-        }
-
-        const nextImage = images[index + 1]?? null;
-        const imageStartFrame = image.startInSeconds * fps;
-        const imageEndFrame = nextImage
-        ? nextImage.startInSeconds * fps
-          : imageStartFrame + fps * 5; // Display each image for 5 seconds if there is no next image
-        const durationInFrames = imageEndFrame - imageStartFrame;
-
-        if (durationInFrames <= 0) {
-          return null;
-        }
-
-        return (
-          <Sequence
-            from={imageStartFrame}
-            durationInFrames={durationInFrames}
-            key={`image-${index}`}
-          >
-            <AbsoluteFill
-              style={{
-                alignItems: 'center',
-                justifyContent: 'flex-start',
-                paddingTop: '10%',
-                opacity: 0, // initial opacity is 0
-                transition: 'opacity 0.5s', // add a transition effect
-              }}
-            >
-              <img
-                src={staticFile(`output/${image.image}`)}
-                style={{
-                  width: '80%',
-                  height: 'auto',
-                }}
-                alt=""
-                onLoad={(e) => {
-                  // when the image is loaded, set opacity to 1
-                  e.target.parentNode.style.opacity = 1;
-                }}
-              />
-            </AbsoluteFill>
           </Sequence>
         );
       })}

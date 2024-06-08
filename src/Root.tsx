@@ -17,7 +17,8 @@ export const RemotionRoot: React.FC = () => {
 			width={1080}
 			height={1920}
 			defaultProps={{
-				src: staticFile('8c3e761c-b8b8-4678-b881-40f4fbb5a91c.mp4'),
+				src: staticFile('ae3dba23-55ef-48a2-aadc-cf07b138fc1a.mp4'),
+				videoTitle: "Trump's Hypocrisy Hits New Lows! 🤯🗣️⚖️ "
 			}}
 		/>
 	);
