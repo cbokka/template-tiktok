@@ -101,7 +101,7 @@ app.post('/render-video', async (req, res) => {
       await ensureDirExists('/mnt/disks/bbnews');
 
       // Pass the systemPromptFile to processTranscription
-      const systemPromptPath = path.join(outputDir, systemPromptFile);
+      const systemPromptPath = path.join(systemPromptFile);
       const imagePromptFilePath = await processTranscription(subtitleFilePath, 2000, item.uuid, systemPromptPath);
 
       if (!item.imagesDownload || item.imagesDownload !== 'complete') {
