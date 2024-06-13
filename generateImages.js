@@ -3,7 +3,8 @@ const path = require('path');
 const { v4: uuidv4 } = require('uuid');
 
 const huggingfaceApiKey = "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";
-const huggingfaceInferenceApiModel = "stabilityai/stable-diffusion-3-medium";
+const huggingfaceInferenceApiModel = "stabilityai/stable-diffusion-xl-base-1.0";
+const huggingfaceInferenceApiModelRefinerModel = "stabilityai/stable-diffusion-xl-refiner-1.0";
 const huggingfaceInferenceApiFileType = "image/jpeg";
 
 const nbInferenceSteps = 30;
@@ -78,8 +79,6 @@ async function generateImage(preset, prompt, width, height) {
             parameters: {
                 num_inference_steps: nbInferenceSteps,
                 guidance_scale: guidanceScale,
-                use_cache: true,
-                wait_for_model: true,
                 width,
                 height,
             }
@@ -96,6 +95,34 @@ async function generateImage(preset, prompt, width, height) {
     const blob = await res.arrayBuffer();
     const contentType = res.headers.get('content-type');
     let assetUrl = `data:${contentType};base64,${Buffer.from(blob).toString('base64')}`;
+
+    try {
+        const refinerRes = await fetch(`https://api-inference.huggingface.co/models/${huggingfaceInferenceApiModelRefinerModel}`, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${huggingfaceApiKey}`,
+            },
+            body: JSON.stringify({
+                inputs: Buffer.from(blob).toString('base64'),
+                parameters: {
+                    prompt: positivePrompt,
+                    num_inference_steps: nbInferenceSteps,
+                    guidance_scale: guidanceScale,
+                    width,
+                    height,
+                }
+            }),
+            cache: "no-store",
+        });
+
+        if (refinerRes.status === 200) {
+            const refinedBlob = await refinerRes.arrayBuffer();
+            assetUrl = `data:${contentType};base64,${Buffer.from(refinedBlob).toString('base64')}`;
+        }
+    } catch (err) {
+        console.log(`Refiner step failed, but this is not a blocker. Error details: ${err}`);
+    }
 
     return {
         renderId: uuidv4(),
