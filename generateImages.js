@@ -78,6 +78,8 @@ async function generateImage(preset, prompt, width, height) {
             parameters: {
                 num_inference_steps: nbInferenceSteps,
                 guidance_scale: guidanceScale,
+                use_cache: true,
+                wait_for_model: true,
                 width,
                 height,
             }
