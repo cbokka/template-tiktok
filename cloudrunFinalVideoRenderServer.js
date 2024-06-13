@@ -4,7 +4,7 @@ const { renderMedia, selectComposition } = require('@remotion/renderer');
 const path = require('path');
 const fs = require('fs').promises;
 const { processTranscription } = require('./generatePrompts');
-const { retryProcessPrompts, outputDir, preset, markImagesDownloadComplete } = require('./generateImages');
+const { retryProcessPrompts, outputDir, preset, markImagesDownloadComplete } = require('./generateImages.js');
 const { convertCharToWordLevel } = require('./gensub');
 const webpackOverride = require('./src/webpack-override.js');
 
@@ -53,7 +53,7 @@ const renderComposition = async (inputProps, uuid) => {
       outputLocation,
       inputProps,
       onProgress: (progress) => {
-        console.log(`Rendering progress object: ${JSON.stringify(progress).progress}`);
+        console.log(`Rendering progress object: ${JSON.stringify(progress)}`);
       },
     });
 

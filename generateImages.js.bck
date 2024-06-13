@@ -1,10 +1,10 @@
 const fs = require('fs');
 const path = require('path');
 const { v4: uuidv4 } = require('uuid');
+const axios = require('axios');
 
-const huggingfaceApiKey = "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";
-const huggingfaceInferenceApiModel = "stabilityai/stable-diffusion-3-medium";
-const huggingfaceInferenceApiFileType = "image/jpeg";
+const gradioApiEndpoint = "https://your-gradio-api-endpoint.com/run";
+const gradioApiKey = "your_gradio_api_key";  // Replace with your actual Gradio API key
 
 const nbInferenceSteps = 30;
 const guidanceScale = 9;
@@ -57,54 +57,54 @@ const presets = {
     },
 };
 
-async function importFetch() {
-    return (await import('node-fetch')).default;
-}
-
 async function generateImage(preset, prompt, width, height) {
-    const fetch = await importFetch();
-    
     const positivePrompt = preset.imagePrompt(prompt).join(", ");
 
-    const res = await fetch(`https://api-inference.huggingface.co/models/${huggingfaceInferenceApiModel}`, {
-        method: "POST",
-        headers: {
-            "Content-Type": "application/json",
-            Accept: huggingfaceInferenceApiFileType,
-            Authorization: `Bearer ${huggingfaceApiKey}`,
-        },
-        body: JSON.stringify({
-            inputs: positivePrompt,
-            parameters: {
-                num_inference_steps: nbInferenceSteps,
-                guidance_scale: guidanceScale,
-                width,
-                height,
-            }
-        }),
-        cache: "no-store",
-    });
-
-    if (res.status !== 200) {
-        const content = await res.text();
-        console.error(content);
-        throw new Error('Failed to fetch data');
-    }
-
-    const blob = await res.arrayBuffer();
-    const contentType = res.headers.get('content-type');
-    let assetUrl = `data:${contentType};base64,${Buffer.from(blob).toString('base64')}`;
-
-    return {
-        renderId: uuidv4(),
-        status: "completed",
-        assetUrl,
-        alt: prompt,
-        error: "",
-        maskUrl: "",
-        segments: [],
-        blob
+    const payload = {
+        model: "Fluently XL Final",
+        inpaint_image_url: "",  // Replace with actual image URL
+        mask_image_url: "",  // Replace with actual image URL
+        mask_blur_factor: 4,
+        denoising_strength: 0.7,
+        prompt: positivePrompt,
+        negative_prompt: preset.negativePrompt().join(", "),
+        use_negative_prompt: true,
+        seed: 0,
+        width: width,
+        height: height,
+        guidance_scale: guidanceScale,
+        randomize_seed: true
     };
+
+    try {
+        const response = await axios.post(gradioApiEndpoint, payload, {
+            headers: {
+                "Authorization": `Bearer ${gradioApiKey}`,
+                "Content-Type": "application/json"
+            }
+        });
+
+        if (response.status !== 200) {
+            console.error(response.data);
+            throw new Error('Failed to fetch data from Gradio API');
+        }
+
+        const assetUrl = response.data.output[0];
+
+        return {
+            renderId: uuidv4(),
+            status: "completed",
+            assetUrl,
+            alt: prompt,
+            error: "",
+            maskUrl: "",
+            segments: [],
+            blob: Buffer.from(assetUrl.split(",")[1], 'base64')
+        };
+    } catch (error) {
+        console.error(error);
+        throw new Error('Error occurred while calling Gradio API');
+    }
 }
 
 function saveImage(image, outputDir) {
